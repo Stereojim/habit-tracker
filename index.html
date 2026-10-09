@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0ea5a5">
+  <title>Трекер привычек</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <h1>Трекер привычек</h1>
+      <div class="header-actions">
+        <span id="balance" class="balance">Баллы: 0</span>
+        <button id="export">Экспорт</button>
+        <button id="add-habit" class="primary">+ Привычка</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="today-section">
+      <h2>Сегодня</h2>
+      <div id="habit-list"></div>
+    </section>
+
+    <section id="calendar-section">
+      <div class="cal-header">
+        <button id="prev-month">‹</button>
+        <span id="month-label"></span>
+        <button id="next-month">›</button>
+      </div>
+      <div class="cal-weekdays">
+        <span>Пн</span><span>Вт</span><span>Ср</span>
+        <span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+      </div>
+      <div id="calendar-row" class="cal-grid"></div>
+    </section>
+  </main>
+
+  <div id="habit-modal" class="modal">
+    <div class="modal-content">
+      <h3 id="modal-title" class="modal-title">Новая привычка</h3>
+      <label>Название
+        <input id="habit-title" type="text" placeholder="Например, Вода">
+      </label>
+      <label>Баллы за выполнение
+        <input id="habit-points" type="number" min="0" value="1">
+      </label>
+      <div class="form-row">
+        <label>Тип
+          <select id="habit-bad">
+            <option value="0">Хорошая</option>
+            <option value="1">Плохая</option>
+          </select>
+        </label>
+        <label>Частота
+          <select id="habit-unit">
+            <option value="daily">Ежедневно</option>
+            <option value="weekly">Раз в неделю</option>
+          </select>
+        </label>
+        <label id="times-label">Раз в неделю
+          <input id="habit-times" type="number" min="1" value="2">
+        </label>
+      </div>
+      <div id="levels-block">
+        <p class="levels-hint">Уровни достижений (по серии)</p>
+        <div id="levels-container"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="cancel-habit">Отмена</button>
+        <button id="save-habit" class="primary">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirm-modal" class="modal">
+    <div class="modal-content">
+      <h3 class="modal-title"></h3>
+      <div class="modal-body"></div>
+      <div class="modal-actions">
+        <button id="confirm-cancel" class="modal-cancel">Отмена</button>
+        <button id="confirm-ok" class="modal-ok primary"></button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/logic.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
