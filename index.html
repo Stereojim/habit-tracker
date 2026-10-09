@@ -14,6 +14,7 @@
       <h1>Трекер привычек</h1>
       <div class="header-actions">
         <span id="balance" class="balance">Баллы: 0</span>
+        <button id="profile-btn" class="profile-btn">👤</button>
         <button id="export">Экспорт</button>
         <button id="add-habit" class="primary">+ Привычка</button>
       </div>
@@ -84,6 +85,20 @@
       <div class="modal-actions">
         <button id="confirm-cancel" class="modal-cancel">Отмена</button>
         <button id="confirm-ok" class="modal-ok primary"></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="profile-modal" class="modal">
+    <div class="modal-content">
+      <h3 class="modal-title">Профили</h3>
+      <div id="profile-list" class="profile-list"></div>
+      <div class="profile-form">
+        <input id="profile-name" type="text" placeholder="Имя профиля">
+        <button id="profile-add" class="primary">Добавить</button>
+      </div>
+      <div class="modal-actions">
+        <button id="profile-close" class="modal-cancel">Закрыть</button>
       </div>
     </div>
   </div>

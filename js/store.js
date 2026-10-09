@@ -17,10 +17,46 @@ const Store = (function () {
     };
   }
 
+  function profileKey(id) {
+    return LOCAL_STORAGE_KEY + '-' + id;
+  }
+
+  function listProfiles() {
+    try {
+      const raw = localStorage.getItem(PROFILE_REGISTRY_KEY);
+      const list = raw ? JSON.parse(raw) : null;
+      if (Array.isArray(list)) {
+        return list.filter(function (p) { return p && p.id; });
+      }
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  function currentProfileId() {
+    try {
+      return localStorage.getItem('habit-tracker-current-profile');
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function activeProfile() {
+    const id = currentProfileId();
+    const list = listProfiles();
+    if (id && list) {
+      const found = list.find(function (p) { return p.id === id; });
+      if (found) return found;
+    }
+    if (list && list.length) return list[0];
+    return null;
+  }
+
   function load() {
+    const profile = activeProfile();
+    const key = profile ? profileKey(profile.id) : LOCAL_STORAGE_KEY;
     let state;
     try {
-      const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+      const raw = localStorage.getItem(key);
       state = raw ? JSON.parse(raw) : null;
     } catch (e) {
       state = null;
@@ -33,7 +69,62 @@ const Store = (function () {
   }
 
   function save(state) {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
+    const profile = activeProfile();
+    const key = profile ? profileKey(profile.id) : LOCAL_STORAGE_KEY;
+    localStorage.setItem(key, JSON.stringify(state));
+  }
+
+  function saveProfiles(list) {
+    localStorage.setItem(PROFILE_REGISTRY_KEY, JSON.stringify(list));
+  }
+
+  function createProfile(name) {
+    const clean = (name || '').trim() || 'Пользователь';
+    const id = newId();
+    const list = listProfiles() || [];
+    list.push({ id: id, name: clean });
+    saveProfiles(list);
+    localStorage.setItem('habit-tracker-current-profile', id);
+    return id;
+  }
+
+  function setCurrentProfile(id) {
+    const list = listProfiles();
+    if (list && list.some(function (p) { return p.id === id; })) {
+      localStorage.setItem('habit-tracker-current-profile', id);
+      return true;
+    }
+    return false;
+  }
+
+  function renameProfile(id, name) {
+    const list = listProfiles();
+    if (!list) return false;
+    const p = list.find(function (x) { return x.id === id; });
+    if (!p) return false;
+    p.name = (name || '').trim() || p.name;
+    saveProfiles(list);
+    return true;
+  }
+
+  function deleteProfile(id) {
+    const list = listProfiles();
+    if (!list) return false;
+    const idx = list.findIndex(function (p) { return p.id === id; });
+    if (idx === -1) return false;
+    list.splice(idx, 1);
+    saveProfiles(list);
+    try {
+      localStorage.removeItem(profileKey(id));
+    } catch (e) { /* ignore */ }
+    if (currentProfileId() === id) {
+      if (list.length) {
+        localStorage.setItem('habit-tracker-current-profile', list[0].id);
+      } else {
+        try { localStorage.removeItem('habit-tracker-current-profile'); } catch (e) { /* ignore */ }
+      }
+    }
+    return true;
   }
 
   function getHabit(state, id) {
@@ -101,6 +192,12 @@ const Store = (function () {
     replaceHabit: replaceHabit,
     removeHabit: removeHabit,
     toggle: toggle,
-    newId: newId
+    newId: newId,
+    listProfiles: listProfiles,
+    activeProfile: activeProfile,
+    createProfile: createProfile,
+    setCurrentProfile: setCurrentProfile,
+    renameProfile: renameProfile,
+    deleteProfile: deleteProfile
   };
 })();

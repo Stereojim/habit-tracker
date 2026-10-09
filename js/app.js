@@ -1,7 +1,7 @@
 'use strict';
 
 (function () {
-  const state = Store.load();
+  let state = Store.load();
   let editingId = null;
 
   const els = {
@@ -28,10 +28,17 @@
     calRow: document.getElementById('calendar-row'),
     monthLabel: document.getElementById('month-label'),
     prevMonth: document.getElementById('prev-month'),
-    nextMonth: document.getElementById('next-month')
+    nextMonth: document.getElementById('next-month'),
+    profileBtn: document.getElementById('profile-btn'),
+    profileModal: document.getElementById('profile-modal'),
+    profileList: document.getElementById('profile-list'),
+    profileName: document.getElementById('profile-name'),
+    profileAdd: document.getElementById('profile-add'),
+    profileClose: document.getElementById('profile-close')
   };
 
   let pendingDelete = null;
+  let pendingDeleteProfile = null;
   let calOffset = 0;
   let currentLevels = [];
 
@@ -55,6 +62,112 @@
       });
       Store.save(state);
     }
+  }
+
+  function ensureProfile() {
+    let profiles = Store.listProfiles();
+    if (!profiles || profiles.length === 0) {
+      const id = Store.createProfile('Пользователь');
+      Store.setCurrentProfile(id);
+    }
+  }
+
+  function reloadProfile() {
+    state = Store.load();
+    renderProfileList();
+    if (els.profileModal.style.display === 'block') {
+      els.profileName.value = '';
+      els.profileName.focus();
+    }
+    rerender();
+  }
+
+  function renderProfileList() {
+    const profiles = Store.listProfiles() || [];
+    const active = Store.activeProfile();
+    els.profileList.innerHTML = '';
+    if (profiles.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.textContent = 'Профилей нет.';
+      els.profileList.appendChild(empty);
+      return;
+    }
+    profiles.forEach(function (p) {
+      const item = document.createElement('div');
+      item.className = 'profile-item' + (active && p.id === active.id ? ' active' : '');
+
+      const nameWrap = document.createElement('div');
+      nameWrap.className = 'profile-name-wrap';
+
+      const name = document.createElement('span');
+      name.className = 'profile-name';
+      name.textContent = p.name;
+      nameWrap.appendChild(name);
+
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.className = 'profile-name-input';
+      nameInput.value = p.name;
+      nameInput.style.display = 'none';
+      nameWrap.appendChild(nameInput);
+
+      item.appendChild(nameWrap);
+
+      const selectBtn = document.createElement('button');
+      selectBtn.textContent = active && p.id === active.id ? 'Текущий' : 'Открыть';
+      selectBtn.disabled = active && p.id === active.id;
+      selectBtn.addEventListener('click', function () {
+        Store.setCurrentProfile(p.id);
+        reloadProfile();
+      });
+      item.appendChild(selectBtn);
+
+      const renameBtn = document.createElement('button');
+      renameBtn.textContent = 'Изм.';
+      renameBtn.addEventListener('click', function () {
+        name.style.display = 'none';
+        nameInput.style.display = 'block';
+        nameInput.focus();
+        nameInput.select();
+      });
+      item.appendChild(renameBtn);
+
+      const finishRename = function () {
+        const val = nameInput.value.trim();
+        if (val && val !== p.name) {
+          Store.renameProfile(p.id, val);
+        }
+        renderProfileList();
+      };
+      nameInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') finishRename();
+        if (e.key === 'Escape') renderProfileList();
+      });
+      nameInput.addEventListener('blur', finishRename);
+
+      if (!(active && p.id === active.id) || profiles.length > 1) {
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = 'Удал.';
+        deleteBtn.className = 'danger';
+        deleteBtn.addEventListener('click', function () {
+          pendingDeleteProfile = p.id;
+          openModal(els.confirmModal, 'Удалить профиль?',
+            'Удалить профиль «' + p.name + '» и все его данные? Это действие необратимо.',
+            'Удалить',
+            function (ok) {
+              if (ok) {
+                Store.deleteProfile(pendingDeleteProfile);
+                pendingDeleteProfile = null;
+                reloadProfile();
+              }
+            });
+        });
+        item.appendChild(deleteBtn);
+      }
+
+      els.profileList.appendChild(item);
+    });
   }
 
   function visibleHabits() {
@@ -383,7 +496,7 @@
   els.addBtn.addEventListener('click', function () { openEdit(null); });
 
   els.badInput.addEventListener('change', function () { renderLevels(); });
-  els.unitInput.addEventListener('change', function () { renderLevels(); });
+  els.unitInput.addEventListener('change', function () { updateUnitVisibility(); renderLevels(); });
 
   els.saveBtn.addEventListener('click', function () {
     const title = els.titleInput.value.trim();
@@ -441,6 +554,36 @@
     URL.revokeObjectURL(url);
   });
 
+  els.profileBtn.addEventListener('click', function () {
+    renderProfileList();
+    els.profileName.value = '';
+    els.profileModal.style.display = 'block';
+    els.profileName.focus();
+  });
+
+  els.profileClose.addEventListener('click', function () {
+    els.profileModal.style.display = 'none';
+  });
+
+  els.profileModal.addEventListener('click', function (e) {
+    if (e.target === els.profileModal) els.profileModal.style.display = 'none';
+  });
+
+  els.profileAdd.addEventListener('click', function () {
+    const name = els.profileName.value.trim();
+    Store.createProfile(name);
+    reloadProfile();
+  });
+
+  els.profileName.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      const name = els.profileName.value.trim();
+      Store.createProfile(name);
+      reloadProfile();
+    }
+  });
+
+  ensureProfile();
   ensureDemo();
   rerender();
   registerSW();

@@ -1,6 +1,7 @@
 'use strict';
 
 const LOCAL_STORAGE_KEY = 'habit-tracker-data';
+const PROFILE_REGISTRY_KEY = 'habit-tracker-profiles';
 const DATA_VERSION = 1;
 
 function pad2(n) {

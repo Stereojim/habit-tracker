@@ -76,6 +76,20 @@ header h1 {
   white-space: nowrap;
 }
 
+.profile-btn {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 17px;
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.profile-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 button {
   padding: 8px 14px;
   border: 1px solid var(--border);
@@ -512,6 +526,89 @@ section h2 {
 
 .modal-ok {
   min-width: 96px;
+}
+
+/* ---- Profile modal ---- */
+.profile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.profile-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #f8fafc;
+}
+
+.profile-item.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.profile-item .profile-name {
+  flex: 1;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.profile-item .profile-name-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.profile-item .profile-name-wrap .profile-name,
+.profile-item .profile-name-wrap .profile-name-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-item .profile-name-input {
+  padding: 5px 8px;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-family: inherit;
+}
+
+.profile-item button.danger {
+  color: #fff;
+  background: #dc2626;
+}
+.profile-item button.danger:hover {
+  background: #b91c1c;
+}
+
+.profile-item button {
+  font-size: 13px;
+  padding: 5px 9px;
+  min-height: 30px;
+}
+
+.profile-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.profile-form input {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-family: inherit;
+}
+
+.profile-form button {
+  white-space: nowrap;
 }
 
 /* ---- Responsive ---- */
