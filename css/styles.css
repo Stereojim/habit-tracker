@@ -50,6 +50,67 @@ header h1 {
   letter-spacing: -0.3px;
 }
 
+.header-tagline {
+  margin: 2px 0 0;
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.85;
+  letter-spacing: 0.2px;
+}
+
+/* ---- Mode toggle (план / факт) ---- */
+.mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.mode-toggle .mode-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.mode-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.mode-slider {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 24px;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+}
+
+.mode-slider::before {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  left: 3px;
+  top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.mode-toggle input:checked + .mode-slider {
+  background: var(--primary-dark);
+}
+
+.mode-toggle input:checked + .mode-slider::before {
+  transform: translateX(20px);
+}
+
 .header-inner {
   max-width: 760px;
   margin: 0 auto;
@@ -362,12 +423,49 @@ section h2 {
   font-weight: 600;
 }
 
+.cal-day.planned {
+  background: #fef9c3;
+  border-color: #fde047;
+}
+
+.cal-day.mood-1 { border-bottom: 4px solid var(--danger); }
+.cal-day.mood-2 { border-bottom: 4px solid #f97316; }
+.cal-day.mood-3 { border-bottom: 4px solid #eab308; }
+.cal-day.mood-4 { border-bottom: 4px solid #22c55e; }
+.cal-day.mood-5 { border-bottom: 4px solid var(--primary); }
+
+.day-stats {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  margin-bottom: 12px;
+}
+
 .day-habit {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 8px 0;
   font-size: 15px;
+}
+
+.day-section-head {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+  margin: 14px 0 4px;
+}
+
+.day-section-head.bad-head {
+  color: #b91c1c;
+}
+
+.empty.no-edge {
+  padding: 10px 0;
+  background: transparent;
+  border: none;
 }
 
 /* ---- Modal ---- */
@@ -609,6 +707,278 @@ section h2 {
 
 .profile-form button {
   white-space: nowrap;
+}
+
+/* ---- Today / plan-fact ---- */
+.today-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.today-head h2 {
+  margin: 0;
+}
+
+.today-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.plan-progress {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  white-space: nowrap;
+}
+
+/* ---- Day circles ---- */
+.day-circles {
+  display: flex;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.circle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.circle-ring {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #eef2f7;
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+
+.circle-ring::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.circle-val {
+  position: relative;
+  z-index: 1;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.circle-ring.clean {
+  background: conic-gradient(#22c55e 360deg, #eef2f7 0deg);
+}
+
+.circle-ring.penalized {
+  background: conic-gradient(var(--danger) 360deg, #eef2f7 0deg);
+}
+
+.circle-ring.penalized .circle-val {
+  color: var(--danger);
+}
+
+.circle-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* ---- Bad-habit penalty ---- */
+.penalty-block {
+  margin: 4px 0 14px;
+  padding: 12px;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-sm);
+  background: #fff7f7;
+}
+
+.penalty-hint {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #b91c1c;
+  margin-bottom: 10px;
+}
+
+.penalty-note {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.penalty-details {
+  font-size: 13px;
+  color: #b91c1c;
+  background: #fff7f7;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  margin-bottom: 12px;
+}
+
+.cal-bad-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  position: absolute;
+  top: 4px;
+  right: 4px;
+}
+
+.cal-day {
+  position: relative;
+}
+
+button.ghost {
+  background: var(--surface);
+  color: var(--primary-dark);
+  border-color: var(--border);
+}
+
+button.ghost:hover {
+  background: #f1f5f9;
+}
+
+#plan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.plan-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+.plan-row.bad {
+  border-left: 5px solid var(--danger);
+}
+
+.plan-row.bad .habit-title {
+  color: #b91c1c;
+}
+
+.fact-head {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+  margin: 6px 0 8px;
+}
+
+.fact-head.bad-head {
+  color: #b91c1c;
+}
+
+/* ---- Mood ---- */
+.mood-block {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.mood-hint {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.mood-picker {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mood-btn {
+  flex: 1;
+  min-width: 52px;
+  max-width: 76px;
+  font-size: 24px;
+  line-height: 1;
+  padding: 12px 0;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transition: all 0.12s ease;
+}
+
+.mood-btn.on {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+}
+
+/* ---- Day pills ---- */
+.days-block {
+  margin-bottom: 14px;
+}
+
+.days-hint {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.days-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.day-pill {
+  flex: 1;
+  min-width: 40px;
+  max-width: 64px;
+  min-height: 36px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 18px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.day-pill.on {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+/* ---- Habits section ---- */
+#habits-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+#habits-section #habit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 /* ---- Responsive ---- */

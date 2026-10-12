@@ -1,10 +1,10 @@
 {
-  "name": "Трекер привычек",
-  "short_name": "Привычки",
+  "name": "Ватсон — что происходит?",
+  "short_name": "Ватсон",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#f4f6fb",
   "theme_color": "#0ea5a5",
+  "background_color": "#f4f6fb",
   "lang": "ru",
   "icons": [
     {

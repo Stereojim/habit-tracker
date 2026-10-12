@@ -3,11 +3,24 @@
 (function () {
   let state = Store.load();
   let editingId = null;
+  let currentMode = 'plan';
+  let currentDays = [];
 
   const els = {
-    list: document.getElementById('habit-list'),
+    list: document.getElementById('plan-list'),
+    todayTitle: document.getElementById('today-title'),
+    autoPlan: document.getElementById('auto-plan'),
+    planProgress: document.getElementById('plan-progress'),
+    dayCircles: document.getElementById('day-circles'),
+    moodBlock: document.querySelector('.mood-block'),
+    moodPicker: document.getElementById('mood-picker'),
+    modeSwitch: document.getElementById('mode-switch'),
+    modeLabel: document.getElementById('mode-label'),
+    modeLabel2: document.getElementById('mode-label2'),
     balance: document.getElementById('balance'),
     addBtn: document.getElementById('add-habit'),
+    addBtn2: document.getElementById('add-habit2'),
+    habitList: document.getElementById('habit-list'),
     exportBtn: document.getElementById('export'),
     modal: document.getElementById('habit-modal'),
     modalTitle: document.getElementById('modal-title'),
@@ -17,6 +30,11 @@
     unitInput: document.getElementById('habit-unit'),
     timesInput: document.getElementById('habit-times'),
     timesLabel: document.getElementById('times-label'),
+    penaltyBlock: document.getElementById('penalty-block'),
+    penaltyInput: document.getElementById('habit-penalty'),
+    penaltyStreakInput: document.getElementById('habit-penalty-streak'),
+    daysBlock: document.getElementById('days-block'),
+    daysPills: document.getElementById('days-pills'),
     levelsBlock: document.getElementById('levels-block'),
     levelsContainer: document.getElementById('levels-container'),
     saveBtn: document.getElementById('save-habit'),
@@ -46,12 +64,20 @@
     'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
     'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
   ];
-  const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+  const DOW_SHORT = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+  const DOW_PILL_ORDER = [1, 2, 3, 4, 5, 6, 0];
+  const MOOD = [
+    { v: 1, emoji: '😞', label: 'Плохо' },
+    { v: 2, emoji: '😕', label: 'Средне' },
+    { v: 3, emoji: '😐', label: 'Нормально' },
+    { v: 4, emoji: '🙂', label: 'Хорошо' },
+    { v: 5, emoji: '😄', label: 'Отлично' }
+  ];
 
   const DEMO = [
     { title: 'Вода', points: 1 },
     { title: 'Чтение 30 мин', points: 2, levels: [{ name: 'Читатель', streak: 7 }, { name: 'Книжный червь', streak: 30 }] },
-    { title: 'Зал', points: 3, unit: 'weekly', timesPerWeek: 3 },
+    { title: 'Зал', points: 3, unit: 'weekly', timesPerWeek: 3, days: [1, 3, 5] },
     { title: 'Чипсы', points: 2, bad: true }
   ];
 
@@ -182,7 +208,8 @@
 
   function rerender() {
     renderBalance();
-    renderList();
+    renderToday();
+    renderHabitList();
     renderCalendar();
   }
 
@@ -190,32 +217,20 @@
     els.balance.textContent = 'Баллы: ' + totalPoints(visibleHabits(), state.completions);
   }
 
-  function renderList() {
+  function renderHabitList() {
     const list = visibleHabits();
-    els.list.innerHTML = '';
+    els.habitList.innerHTML = '';
     if (list.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'empty';
       empty.textContent = 'Нет привычек. Добавьте новую.';
-      els.list.appendChild(empty);
+      els.habitList.appendChild(empty);
       return;
     }
-    const t = today();
-    list.forEach(function (habit, i) {
+    list.forEach(function (habit) {
       const dates = state.completions[habit.id] || [];
-      const done = includesDate(dates, t);
       const row = document.createElement('div');
       row.className = 'habit-row' + (habit.bad ? ' bad' : '');
-
-      const chk = document.createElement('input');
-      chk.type = 'checkbox';
-      chk.className = 'habit-check';
-      chk.checked = done;
-      chk.addEventListener('change', function () {
-        Store.toggle(state, habit.id, t);
-        Store.save(state);
-        rerender();
-      });
 
       const info = document.createElement('div');
       info.className = 'habit-info';
@@ -226,34 +241,38 @@
       const title = document.createElement('div');
       title.className = 'habit-title';
       title.textContent = habit.title;
-
       titleRow.appendChild(title);
 
       if (habit.levels && habit.levels.length) {
-        const lv = levelFor(habit, streakForHabit(habit, dates, t));
+        const lv = levelFor(habit, streakForHabit(habit, dates, today()));
         const badge = document.createElement('span');
         badge.className = 'level-badge';
         badge.textContent = lv ? lv.name : 'Без уровня';
-        badge.title = 'Текущий уровень';
         titleRow.appendChild(badge);
       }
 
-      const todayCount = includesDate(dates, t);
-      let metaText =
-        'Отметок: ' + countDates(dates) +
-        ' · Серия: ' + streakForHabit(habit, dates, t);
+      info.appendChild(titleRow);
 
-      if (habit.unit === 'weekly') {
-        metaText += ' (7дн: ' + countLast7(dates, t) + '/' + habit.timesPerWeek + ')';
+      let metaText;
+      if (habit.bad) {
+        const st = badStreak(dates, today());
+        metaText = 'Серия: ' + st + ' дн.';
+        if (habit.penaltyAfterStreak) {
+          metaText += ' · штраф с ' + habit.penaltyAfterStreak + ' дн. ×' + (habit.penalty != null ? habit.penalty : 0.9);
+        }
+        metaText += ' · нарушений: ' + countDates(dates);
+      } else {
+        metaText = 'Отметок: ' + countDates(dates) + ' · Серия: ' + streakForHabit(habit, dates, today());
+        if (habit.unit === 'weekly') {
+          metaText += ' (7дн: ' + countLast7(dates, today()) + '/' + habit.timesPerWeek + ')';
+          metaText += ' · Дни: ' + (habit.days && habit.days.length ? habit.days.map(function (n) { return DOW_SHORT[n]; }).join(', ') : 'Все');
+        }
+        metaText += ' · Баллы: ' + pointsForHabit(habit, dates);
       }
-
-      metaText += ' · Баллы: ' + pointsForHabit(habit, dates);
 
       const meta = document.createElement('div');
       meta.className = 'habit-meta';
       meta.textContent = metaText;
-
-      info.appendChild(titleRow);
       info.appendChild(meta);
 
       const actions = document.createElement('div');
@@ -272,12 +291,300 @@
       actBtn('Архив', function () { archive(habit); });
       actBtn('Удалить', function () { requestDelete(habit); });
 
-      row.appendChild(chk);
       row.appendChild(info);
       row.appendChild(actions);
-      els.list.appendChild(row);
+      els.habitList.appendChild(row);
     });
   }
+
+  // ---- Plan / Fact (план / факт) ----
+
+  function setIsPlanned(habitId, on) {
+    const t = today();
+    if (!state.plans[t]) state.plans[t] = {};
+    state.plans[t][habitId] = !!on;
+    Store.save(state);
+  }
+
+  function setMode(mode) {
+    currentMode = mode;
+    els.modeSwitch.checked = mode === 'fact';
+    renderToday();
+  }
+
+  function renderToday() {
+    if (currentMode === 'plan') {
+      renderPlan();
+    } else {
+      renderResult();
+    }
+    renderCircles();
+  }
+
+  function renderCircles() {
+    const t = today();
+    els.dayCircles.innerHTML = '';
+    const pct = planPercent(state, t);
+    const r = dayResult(state, t);
+
+    const good = document.createElement('div');
+    good.className = 'circle';
+    const goodG = document.createElement('div');
+    goodG.className = 'circle-ring';
+    const goodVal = document.createElement('div');
+    goodVal.className = 'circle-val';
+    goodVal.textContent = pct != null ? pct + '%' : '–';
+    goodG.appendChild(goodVal);
+    good.appendChild(goodG);
+    const goodLbl = document.createElement('div');
+    goodLbl.className = 'circle-label';
+    goodLbl.textContent = 'План';
+    good.appendChild(goodLbl);
+    if (pct != null) {
+      goodG.style.background =
+        'conic-gradient(var(--primary) ' + pct * 3.6 + 'deg, #eef2f7 0deg)';
+    }
+    good.title = pct != null
+      ? 'Выполнено плана: ' + pct + '% (по очкам)'
+      : 'Нет плана на сегодня';
+
+    els.dayCircles.appendChild(good);
+
+    const bad = document.createElement('div');
+    bad.className = 'circle';
+    const badG = document.createElement('div');
+    badG.className = 'circle-ring';
+    const badVal = document.createElement('div');
+    badVal.className = 'circle-val';
+    badVal.textContent = r.mult < 1 ? '×' + r.mult : '✓';
+    badG.appendChild(badVal);
+    bad.appendChild(badG);
+    const badLbl = document.createElement('div');
+    badLbl.className = 'circle-label';
+    badLbl.textContent = 'Бонус';
+    bad.appendChild(badLbl);
+
+    if (r.mult < 1) {
+      badG.classList.add('penalized');
+      const active = r.penalties.map(function (p) {
+        return p.habit.title + ' (серия ' + p.streak + ') ×' + p.penalty;
+      }).join(', ');
+      bad.title = 'Штраф: ' + active;
+    } else {
+      badG.classList.add('clean');
+      const streaks = badHabits(state).map(function (h) {
+        return h.title + ': ' + badStreak(state.completions[h.id], t) + ' дн.';
+      });
+      bad.title = streaks.length
+        ? 'Чисто сегодня. Серии: ' + streaks.join(', ')
+        : 'Нет плохих привычек';
+    }
+
+    els.dayCircles.appendChild(bad);
+  }
+
+  function makeRow(habitId, checked) {
+    const habit = Store.getHabit(state, habitId);
+    const row = document.createElement('div');
+    row.className = 'plan-row' + (habit && habit.bad ? ' bad' : '');
+
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.className = 'habit-check';
+    chk.checked = checked;
+    row.appendChild(chk);
+
+    const info = document.createElement('div');
+    info.className = 'habit-info';
+
+    const title = document.createElement('div');
+    title.className = 'habit-title';
+    title.textContent = habit ? habit.title : '?';
+    info.appendChild(title);
+
+    if (habit && habit.unit === 'weekly') {
+      const meta = document.createElement('div');
+      meta.className = 'habit-meta';
+      meta.textContent = 'Раз в неделю · ' + (habit.timesPerWeek || 1) + '×';
+      info.appendChild(meta);
+    }
+
+    row.appendChild(info);
+    return { row: row, chk: chk };
+  }
+
+  function renderPlan() {
+    const t = today();
+    const scheduled = scheduledHabits(state, t).filter(function (h) { return !h.bad; })
+      .slice().sort(function (a, b) { return a.sortOrder - b.sortOrder; });
+
+    els.todayTitle.textContent = 'План на сегодня';
+    els.list.innerHTML = '';
+
+    if (scheduled.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.textContent = 'На сегодня нет запланированных привычек.';
+      els.list.appendChild(empty);
+      els.planProgress.textContent = '';
+      els.moodBlock.style.display = 'none';
+      return;
+    }
+
+    ensurePlan(state, t);
+
+    scheduled.forEach(function (habit) {
+      const on = isPlanned(state, t, habit.id);
+      const parts = makeRow(habit.id, on);
+      parts.chk.addEventListener('change', function () {
+        setIsPlanned(habit.id, parts.chk.checked);
+        renderToday();
+      });
+      els.list.appendChild(parts.row);
+    });
+
+    const n = planCount(state, t);
+    els.planProgress.textContent = 'В плане: ' + n;
+    els.moodBlock.style.display = 'none';
+  }
+
+  function renderResult() {
+    const t = today();
+    els.todayTitle.textContent = 'Результат — что сделано';
+    els.list.innerHTML = '';
+
+    const todayPlanned = Object.keys(state.plans[t] || {}).filter(function (k) {
+      const h = Store.getHabit(state, k);
+      return state.plans[t][k] && h && !h.bad;
+    }).sort(function (a, b) {
+      const ha = Store.getHabit(state, a);
+      const hb = Store.getHabit(state, b);
+      return (ha ? ha.sortOrder : 0) - (hb ? hb.sortOrder : 0);
+    });
+
+    let groups = [];
+
+    if (todayPlanned.length) {
+      const wrap = document.createElement('div');
+      const head = document.createElement('div');
+      head.className = 'fact-head';
+      head.textContent = 'Сегодня (по плану)';
+      wrap.appendChild(head);
+      todayPlanned.forEach(function (hid) {
+        const parts = makeRow(hid, includesDate(state.completions[hid] || [], t));
+        parts.chk.addEventListener('change', function () {
+          Store.toggle(state, hid, t);
+          Store.save(state);
+          renderToday();
+        });
+        wrap.appendChild(parts.row);
+      });
+      groups.push(wrap);
+    }
+
+    const y = shiftDate(t, -1);
+    const yPlanned = Object.keys(state.plans[y] || {}).filter(function (k) {
+      const h = Store.getHabit(state, k);
+      return state.plans[y][k] && h && !h.bad;
+    }).sort(function (a, b) {
+      const ha = Store.getHabit(state, a);
+      const hb = Store.getHabit(state, b);
+      return (ha ? ha.sortOrder : 0) - (hb ? hb.sortOrder : 0);
+    });
+
+    if (yPlanned.length) {
+      const wrap = document.createElement('div');
+      const head = document.createElement('div');
+      head.className = 'fact-head';
+      head.textContent = 'Вчера (подтвердить)';
+      wrap.appendChild(head);
+      yPlanned.forEach(function (hid) {
+        const parts = makeRow(hid, includesDate(state.completions[hid] || [], y));
+        parts.chk.addEventListener('change', function () {
+          Store.toggle(state, hid, y);
+          Store.save(state);
+          renderToday();
+        });
+        wrap.appendChild(parts.row);
+      });
+      groups.push(wrap);
+    }
+
+    const badList = badHabits(state).sort(function (a, b) { return a.sortOrder - b.sortOrder; });
+    if (badList.length) {
+      const wrap = document.createElement('div');
+      const head = document.createElement('div');
+      head.className = 'fact-head bad-head';
+      head.textContent = 'Плохиши (сегодня)';
+      wrap.appendChild(head);
+      badList.forEach(function (h) {
+        const on = includesDate(state.completions[h.id] || [], t);
+        const st = badStreak(state.completions[h.id], t);
+        const parts = makeRow(h.id, on);
+        parts.chk.addEventListener('change', function () {
+          Store.toggle(state, h.id, t);
+          Store.save(state);
+          renderToday();
+        });
+        const meta = parts.row.querySelector('.habit-meta');
+        const sm = document.createElement('div');
+        sm.className = 'habit-meta';
+        sm.textContent = 'Серия: ' + st + ' дн.' + (h.penaltyAfterStreak ? ' · штраф с ' + h.penaltyAfterStreak + ' дн. ×' + (h.penalty != null ? h.penalty : 0.9) : '');
+        if (meta) meta.replaceWith(sm); else parts.row.querySelector('.habit-info').appendChild(sm);
+        wrap.appendChild(parts.row);
+      });
+      groups.push(wrap);
+    }
+
+    if (groups.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.textContent = 'Нет плана. Переключитесь на «План» и отметьте привычки на сегодня.';
+      els.list.appendChild(empty);
+    } else {
+      groups.forEach(function (g) { els.list.appendChild(g); });
+    }
+
+    const pct = planPercent(state, t);
+    const doneCount = donePlannedCount(state, t);
+    const total = planCount(state, t);
+    const r = dayResult(state, t);
+    let progress = total
+      ? 'Выполнено ' + doneCount + ' из ' + total + (pct != null ? ' · ' + pct + '%' : '')
+      : '';
+    if (r.mult < 1) {
+      progress += ' · ×' + r.mult + ' (штраф)';
+    }
+    els.planProgress.textContent = progress;
+
+    renderMood();
+    els.moodBlock.style.display = 'block';
+  }
+
+  function renderMood() {
+    const t = today();
+    const current = state.mood[t] || null;
+    els.moodPicker.innerHTML = '';
+    MOOD.forEach(function (m) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'mood-btn' + (current === m.v ? ' on' : '');
+      btn.textContent = m.emoji;
+      btn.title = m.label;
+      btn.addEventListener('click', function () {
+        if (state.mood[t] === m.v) {
+          Store.setMood(state, t, null);
+        } else {
+          Store.setMood(state, t, m.v);
+        }
+        Store.save(state);
+        renderMood();
+      });
+      els.moodPicker.appendChild(btn);
+    });
+  }
+
+  // ---- Calendar ----
 
   function renderCalendar() {
     const now = new Date();
@@ -304,19 +611,35 @@
       cell.className = 'cal-day';
       cell.textContent = d;
 
-      const h = visibleHabits();
-      const allDone = h.length > 0 && h.every(function (hh) {
-        return includesDate(state.completions[hh.id] || [], iso);
-      });
-      const anyDone = h.some(function (hh) {
-        return includesDate(state.completions[hh.id] || [], iso);
-      });
-      if (allDone) cell.classList.add('done-all');
-      else if (anyDone) cell.classList.add('done-part');
+      const pct = planPercent(state, iso);
+      if (pct === 100) {
+        cell.classList.add('done-all');
+      } else if (pct != null && pct > 0) {
+        cell.classList.add('done-part');
+      } else if (planCount(state, iso) > 0) {
+        cell.classList.add('planned');
+      }
+
+      const pTotal = planCount(state, iso);
+      const pDone = donePlannedCount(state, iso);
+      const r = dayResult(state, iso);
+      const mult = r.mult;
+      if (mult < 1) {
+        const dot = document.createElement('span');
+        dot.className = 'cal-bad-dot';
+        dot.title = 'Штраф: ×' + mult;
+        cell.appendChild(dot);
+      }
+
+      const mood = state.mood[iso];
+      if (mood) cell.classList.add('mood-' + mood);
 
       if (iso === today()) cell.classList.add('today');
 
-      cell.title = 'Все: ' + (allDone ? 'да' : 'нет') + ' · Частично: ' + (anyDone ? 'да' : 'нет');
+      let tip = 'План: ' + pTotal + ' · Факт: ' + pDone + (pct != null ? ' · ' + pct + '%' : '');
+      if (r.mult < 1) tip += ' · штраф ×' + r.mult;
+      if (mood) tip += ' · Настроение: ' + mood + '/5';
+      cell.title = tip;
 
       cell.addEventListener('click', function () {
         openDayDetail(year, month, d, iso);
@@ -327,33 +650,128 @@
 
   function openDayDetail(year, month, d, iso) {
     const title = d + ' ' + MONTHS[month] + ' ' + year;
-    const habits = visibleHabits();
     const body = document.createElement('div');
 
-    habits.forEach(function (habit) {
+    const pTotal = planCount(state, iso);
+    const pDone = donePlannedCount(state, iso);
+    const pct = planPercent(state, iso);
+    const mood = state.mood[iso];
+    const r = dayResult(state, iso);
+
+    const stats = document.createElement('div');
+    stats.className = 'day-stats';
+    let s = 'План: ' + pTotal + ' · Факт: ' + pDone +
+      (pct != null ? ' · ' + pct + '%' : '');
+    if (r.mult < 1) {
+      s += ' · Баллы: ' + r.points + ' × ' + r.mult + ' = ' + r.total;
+    } else {
+      s += ' · Баллы: ' + r.points;
+    }
+    if (mood) s += ' · Настроение: ' + mood + '/5';
+    stats.textContent = s;
+    body.appendChild(stats);
+
+    if (r.penalties.length) {
+      const pen = document.createElement('div');
+      pen.className = 'penalty-details';
+      pen.textContent = r.penalties.map(function (p) {
+        return '«' + p.habit.title + '»: серия ' + p.streak + ' дн. → ×' + p.penalty;
+      }).join('; ');
+      body.appendChild(pen);
+    }
+
+    const goodScheduled = scheduledHabits(state, iso).filter(function (h) {
+      return !h.bad;
+    }).sort(function (a, b) { return a.sortOrder - b.sortOrder; });
+
+    function checkRow(habit, checked, onChange) {
       const label = document.createElement('label');
       label.className = 'day-habit';
-
       const chk = document.createElement('input');
       chk.type = 'checkbox';
-      chk.checked = includesDate(state.completions[habit.id] || [], iso);
-      chk.addEventListener('change', function () {
-        Store.toggle(state, habit.id, iso);
-        Store.save(state);
-      });
-
+      chk.checked = checked;
+      chk.addEventListener('change', onChange);
       const span = document.createElement('span');
       span.textContent = habit.title;
-
+      if (habit.unit === 'weekly') {
+        span.textContent += ' (раз в неделю)';
+      }
       label.appendChild(chk);
       label.appendChild(span);
-      body.appendChild(label);
-    });
+      return label;
+    }
+
+    if (goodScheduled.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.textContent = 'На этот день нет запланированных привычек. Сначала задайте план на сегодня.';
+      body.appendChild(empty);
+    } else {
+      const noPlan = planCount(state, iso) === 0;
+
+      const planHead = document.createElement('div');
+      planHead.className = 'day-section-head';
+      planHead.textContent = 'План';
+      body.appendChild(planHead);
+
+      if (noPlan) {
+        const hint = document.createElement('div');
+        hint.className = 'empty no-edge';
+        hint.textContent = 'Плана нет — отметьте, что запланировать на этот день.';
+        body.appendChild(hint);
+      }
+
+      goodScheduled.forEach(function (habit) {
+        const on = isPlanned(state, iso, habit.id);
+        body.appendChild(checkRow(habit, on, function (e) {
+          if (!state.plans[iso]) state.plans[iso] = {};
+          state.plans[iso][habit.id] = e.target.checked;
+          Store.save(state);
+        }));
+      });
+
+      const resHead = document.createElement('div');
+      resHead.className = 'day-section-head';
+      resHead.textContent = 'Результат';
+      body.appendChild(resHead);
+
+      const plannedIds = plannedGoodIds(state, iso);
+      if (plannedIds.length === 0) {
+        const hint = document.createElement('div');
+        hint.className = 'empty no-edge';
+        hint.textContent = 'Отметьте план выше — здесь появится список для проставления результата.';
+        body.appendChild(hint);
+      }
+      plannedIds.forEach(function (hid) {
+        const habit = Store.getHabit(state, hid);
+        if (!habit) return;
+        body.appendChild(checkRow(habit, includesDate(state.completions[hid] || [], iso), function (e) {
+          Store.toggle(state, hid, iso);
+          Store.save(state);
+        }));
+      });
+
+      const badOnDay = badHabits(state).sort(function (a, b) { return a.sortOrder - b.sortOrder; });
+      if (badOnDay.length) {
+        const badHead = document.createElement('div');
+        badHead.className = 'day-section-head bad-head';
+        badHead.textContent = 'Плохиши (нарушения)';
+        body.appendChild(badHead);
+        badOnDay.forEach(function (habit) {
+          body.appendChild(checkRow(habit, includesDate(state.completions[habit.id] || [], iso), function () {
+            Store.toggle(state, habit.id, iso);
+            Store.save(state);
+          }));
+        });
+      }
+    }
 
     openModal(els.confirmModal, title, body, 'Готово', function (ok) {
       if (ok) rerender();
     });
   }
+
+  // ---- Habit CRUD ----
 
   function move(habit, dir) {
     const list = allHabitsSorted();
@@ -394,11 +812,18 @@
     els.titleInput.value = habit ? habit.title : '';
     els.pointsInput.value = habit ? habit.points : 1;
     els.badInput.value = habit && habit.bad ? '1' : '0';
+    els.penaltyInput.value = habit && habit.bad && habit.penalty != null ? habit.penalty : 0.9;
+    els.penaltyStreakInput.value = habit && habit.bad && habit.penaltyAfterStreak ? habit.penaltyAfterStreak : 3;
     els.unitInput.value = habit && habit.unit === 'weekly' ? 'weekly' : 'daily';
     els.timesInput.value = habit && habit.unit === 'weekly' ? (habit.timesPerWeek || 1) : 2;
+    currentDays = habit && habit.unit === 'weekly' && habit.days && habit.days.length
+      ? habit.days.slice()
+      : DOW_PILL_ORDER.slice();
     currentLevels = (habit && habit.levels) ? habit.levels.slice() : [];
     updateUnitVisibility();
+    updatePenaltyVisibility();
     renderLevels();
+    renderDayPills();
     els.modal.style.display = 'block';
     els.titleInput.focus();
   }
@@ -406,6 +831,30 @@
   function updateUnitVisibility() {
     const weekly = els.unitInput.value === 'weekly';
     els.timesLabel.style.display = weekly ? 'block' : 'none';
+    els.daysBlock.style.display = weekly ? 'block' : 'none';
+  }
+
+  function updatePenaltyVisibility() {
+    const bad = els.badInput.value === '1';
+    els.penaltyBlock.style.display = bad ? 'block' : 'none';
+  }
+
+  function renderDayPills() {
+    els.daysPills.innerHTML = '';
+    DOW_PILL_ORDER.forEach(function (dayNum) {
+      const on = currentDays.indexOf(dayNum) !== -1;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'day-pill' + (on ? ' on' : '');
+      btn.textContent = DOW_SHORT[dayNum];
+      btn.addEventListener('click', function () {
+        const idx = currentDays.indexOf(dayNum);
+        if (idx === -1) currentDays.push(dayNum);
+        else currentDays.splice(idx, 1);
+        renderDayPills();
+      });
+      els.daysPills.appendChild(btn);
+    });
   }
 
   function renderLevels() {
@@ -493,10 +942,27 @@
     return done;
   }
 
-  els.addBtn.addEventListener('click', function () { openEdit(null); });
+  // ---- Events ----
 
-  els.badInput.addEventListener('change', function () { renderLevels(); });
+  els.addBtn.addEventListener('click', function () { openEdit(null); });
+  els.addBtn2.addEventListener('click', function () { openEdit(null); });
+
+  els.badInput.addEventListener('change', function () { updatePenaltyVisibility(); renderLevels(); });
   els.unitInput.addEventListener('change', function () { updateUnitVisibility(); renderLevels(); });
+
+  els.modeSwitch.addEventListener('change', function () {
+    setMode(els.modeSwitch.checked ? 'fact' : 'plan');
+  });
+
+  els.autoPlan.addEventListener('click', function () {
+    const t = today();
+    if (!state.plans[t]) state.plans[t] = {};
+    scheduledHabits(state, t).filter(function (h) { return !h.bad; }).forEach(function (h) {
+      state.plans[t][h.id] = true;
+    });
+    Store.save(state);
+    renderToday();
+  });
 
   els.saveBtn.addEventListener('click', function () {
     const title = els.titleInput.value.trim();
@@ -506,7 +972,10 @@
     const unit = els.unitInput.value;
     const timesPerWeek = unit === 'weekly' ? (parseInt(els.timesInput.value, 10) || 1) : 1;
     const levels = bad ? [] : collectLevels();
-    const data = { title: title, points: points, bad: bad, unit: unit, timesPerWeek: timesPerWeek, levels: levels };
+    const days = unit === 'weekly' && currentDays.length ? currentDays.slice().sort() : null;
+    const penalty = bad ? (parseFloat(els.penaltyInput.value) || 0.9) : null;
+    const penaltyAfterStreak = bad ? (parseInt(els.penaltyStreakInput.value, 10) || 3) : null;
+    const data = { title: title, points: points, bad: bad, unit: unit, timesPerWeek: timesPerWeek, levels: levels, days: days, penalty: penalty, penaltyAfterStreak: penaltyAfterStreak };
     if (editingId) {
       Store.updateHabit(state, editingId, data);
     } else {
@@ -547,7 +1016,7 @@
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'habit-tracker-backup.json';
+    a.download = 'whatson-backup.json';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -585,6 +1054,7 @@
 
   ensureProfile();
   ensureDemo();
+  setMode('plan');
   rerender();
   registerSW();
 })();

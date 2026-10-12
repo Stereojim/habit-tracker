@@ -4,16 +4,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#0ea5a5">
-  <title>Трекер привычек</title>
+  <title>Ватсон — что происходит?</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
   <header>
     <div class="header-inner">
-      <h1>Трекер привычек</h1>
+      <h1>Ватсон</h1>
+      <p class="header-tagline">что происходит?</p>
       <div class="header-actions">
         <span id="balance" class="balance">Баллы: 0</span>
+        <label class="mode-toggle" title="План / Факт">
+          <span class="mode-label" id="mode-label">План</span>
+          <input type="checkbox" id="mode-switch">
+          <span class="mode-slider"></span>
+          <span class="mode-label" id="mode-label2">Результат</span>
+        </label>
         <button id="profile-btn" class="profile-btn">👤</button>
         <button id="export">Экспорт</button>
         <button id="add-habit" class="primary">+ Привычка</button>
@@ -23,8 +30,19 @@
 
   <main>
     <section id="today-section">
-      <h2>Сегодня</h2>
-      <div id="habit-list"></div>
+      <div class="today-head">
+        <h2 id="today-title">План на сегодня</h2>
+        <div class="today-actions">
+          <button id="auto-plan" class="ghost">Автоплан</button>
+          <span id="plan-progress" class="plan-progress"></span>
+        </div>
+      </div>
+      <div id="day-circles" class="day-circles"></div>
+      <div id="plan-list"></div>
+      <div class="mood-block">
+        <span class="mood-hint">Настроение за день</span>
+        <div id="mood-picker" class="mood-picker"></div>
+      </div>
     </section>
 
     <section id="calendar-section">
@@ -38,6 +56,14 @@
         <span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
       </div>
       <div id="calendar-row" class="cal-grid"></div>
+    </section>
+
+    <section id="habits-section">
+      <div class="today-head">
+        <h2>Привычки</h2>
+        <button id="add-habit2" class="ghost">+ Привычка</button>
+      </div>
+      <div id="habit-list"></div>
     </section>
   </main>
 
@@ -57,6 +83,18 @@
             <option value="1">Плохая</option>
           </select>
         </label>
+        <div id="penalty-block" class="penalty-block">
+          <span class="penalty-hint">Штраф при срыве серии</span>
+          <div class="form-row">
+            <label>Множитель
+               <span class="penalty-note">0.9 = −10% за день</span>
+               <input id="habit-penalty" type="number" min="0" max="1" step="0.05" value="0.9">
+            </label>
+            <label>Серия (дней)
+              <input id="habit-penalty-streak" type="number" min="1" value="3">
+            </label>
+          </div>
+        </div>
         <label>Частота
           <select id="habit-unit">
             <option value="daily">Ежедневно</option>
@@ -66,6 +104,10 @@
         <label id="times-label">Раз в неделю
           <input id="habit-times" type="number" min="1" value="2">
         </label>
+      </div>
+      <div id="days-block" class="days-block">
+        <span class="days-hint">Дни недели (для «Раз в неделю»)</span>
+        <div id="days-pills" class="days-pills"></div>
       </div>
       <div id="levels-block">
         <p class="levels-hint">Уровни достижений (по серии)</p>

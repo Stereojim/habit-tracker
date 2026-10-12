@@ -133,3 +133,123 @@ function totalPoints(habits, completions) {
   }
   return total;
 }
+
+// ---- Plan / fact (план/факт) ----
+
+function getDay(iso) {
+  return dateFromISO(iso).getDay();
+}
+
+const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
+
+function habitById(state, id) {
+  return state.habits.find(function (h) { return h.id === id; }) || null;
+}
+
+function goodHabits(state) {
+  return state.habits.filter(function (h) { return !h.archived && !h.bad; });
+}
+
+function badHabits(state) {
+  return state.habits.filter(function (h) { return !h.archived && h.bad; });
+}
+
+function habitScheduledOn(habit, iso) {
+  if (habit.unit !== 'weekly') return true;
+  const days = habit.days && habit.days.length ? habit.days : ALL_DAYS;
+  return days.indexOf(getDay(iso)) !== -1;
+}
+
+function scheduledHabits(state, iso) {
+  return state.habits.filter(function (h) {
+    return !h.archived && habitScheduledOn(h, iso);
+  });
+}
+
+function ensurePlan(state, iso) {
+  if (!state.plans[iso]) state.plans[iso] = {};
+  const plan = state.plans[iso];
+  scheduledHabits(state, iso).filter(function (h) { return !h.bad; }).forEach(function (h) {
+    if (plan[h.id] === undefined) plan[h.id] = true;
+  });
+  return plan;
+}
+
+function isPlanned(state, iso, habitId) {
+  return ensurePlan(state, iso)[habitId] === true;
+}
+
+function plannedGoodIds(state, iso) {
+  const plan = state.plans[iso] || {};
+  return Object.keys(plan).filter(function (k) {
+    const h = plan[k] ? habitById(state, k) : null;
+    return h && !h.bad && !h.archived;
+  });
+}
+
+function planCount(state, iso) {
+  return plannedGoodIds(state, iso).length;
+}
+
+function donePlannedCount(state, iso) {
+  return plannedGoodIds(state, iso).filter(function (hid) {
+    return (state.completions[hid] || []).indexOf(iso) !== -1;
+  }).length;
+}
+
+// Результат дня: % по очкам хороших привычек (вредные исключены)
+function planPercent(state, iso) {
+  const ids = plannedGoodIds(state, iso);
+  let total = 0;
+  let done = 0;
+  ids.forEach(function (hid) {
+    const h = habitById(state, hid);
+    const pts = h ? (h.points || 1) : 1;
+    total += pts;
+    if ((state.completions[hid] || []).indexOf(iso) !== -1) done += pts;
+  });
+  if (!total) return null;
+  return Math.round(done / total * 100);
+}
+
+// Плохиши: серия не прерывается, пока привычка "сделана" подряд
+function badStreak(completions, iso) {
+  let n = 0;
+  let d = iso;
+  const set = new Set(completions || []);
+  while (set.has(d)) {
+    n++;
+    d = shiftDate(d, -1);
+  }
+  return n;
+}
+
+// Какие штрафы активны на дате (серия доросла до порога)
+function activePenalties(state, iso) {
+  const out = [];
+  badHabits(state).forEach(function (h) {
+    const streak = badStreak(state.completions[h.id], iso);
+    const threshold = h.penaltyAfterStreak || 3;
+    if (streak >= threshold) {
+      out.push({ habit: h, streak: streak, penalty: h.penalty != null ? h.penalty : 0.9 });
+    }
+  });
+  return out;
+}
+
+function goodDayPoints(state, iso) {
+  let s = 0;
+  goodHabits(state).forEach(function (h) {
+    if ((state.completions[h.id] || []).indexOf(iso) !== -1) s += (h.points || 0);
+  });
+  return s;
+}
+
+function dayResult(state, iso) {
+  const points = goodDayPoints(state, iso);
+  const penalties = activePenalties(state, iso);
+  let mult = 1;
+  penalties.forEach(function (p) { mult *= p.penalty; });
+  const total = Math.round(points * mult * 100) / 100;
+  return { points: points, mult: mult, total: total, penalties: penalties };
+}

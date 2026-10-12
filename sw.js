@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'habit-tracker-v4';
+const CACHE_NAME = 'whatson-v1';
 
 const ASSETS = [
   './',

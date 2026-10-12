@@ -13,8 +13,24 @@ const Store = (function () {
     return {
       version: DATA_VERSION,
       habits: [],
-      completions: {}
+      completions: {},
+      plans: {},
+      mood: {}
     };
+  }
+
+  function migrate(state) {
+    if (state && !state.plans) state.plans = {};
+    if (state && !state.mood) state.mood = {};
+    if (state && Array.isArray(state.habits)) {
+      state.habits.forEach(function (h) {
+        if (h && h.bad) {
+          if (h.penalty == null) h.penalty = 0.9;
+          if (h.penaltyAfterStreak == null) h.penaltyAfterStreak = 3;
+        }
+      });
+    }
+    return state;
   }
 
   function profileKey(id) {
@@ -65,6 +81,7 @@ const Store = (function () {
       state = emptyState();
     }
     if (!state.completions) state.completions = {};
+    state = migrate(state);
     return state;
   }
 
@@ -139,7 +156,10 @@ const Store = (function () {
       bad: !!habitData.bad,
       unit: habitData.unit === 'weekly' ? 'weekly' : 'daily',
       timesPerWeek: habitData.unit === 'weekly' ? (habitData.timesPerWeek || 1) : null,
+      days: habitData.days && habitData.days.length ? habitData.days.slice() : null,
       levels: habitData.levels || [],
+      penalty: habitData.penalty != null ? habitData.penalty : 0.9,
+      penaltyAfterStreak: habitData.penaltyAfterStreak || 3,
       archived: false,
       sortOrder: state.habits.length,
       createdAt: new Date().toISOString()
@@ -162,10 +182,15 @@ const Store = (function () {
     if (patch.timesPerWeek !== undefined) {
       habit.timesPerWeek = (patch.timesPerWeek || 1);
     }
+    if (patch.days !== undefined) {
+      habit.days = patch.days && patch.days.length ? patch.days.slice() : null;
+    }
     if (habit.unit === 'daily' && patch.unit === 'daily') {
       habit.timesPerWeek = null;
     }
     if (patch.levels !== undefined) habit.levels = patch.levels || [];
+    if (patch.penalty !== undefined) habit.penalty = patch.penalty;
+    if (patch.penaltyAfterStreak !== undefined) habit.penaltyAfterStreak = patch.penaltyAfterStreak;
     return true;
   }
 
@@ -183,6 +208,14 @@ const Store = (function () {
     state.completions[id] = toggleCompletion(state.completions[id], dateISO);
   }
 
+  function setMood(state, iso, value) {
+    if (value == null) {
+      delete state.mood[iso];
+    } else {
+      state.mood[iso] = value;
+    }
+  }
+
   return {
     load: load,
     save: save,
@@ -192,6 +225,7 @@ const Store = (function () {
     replaceHabit: replaceHabit,
     removeHabit: removeHabit,
     toggle: toggle,
+    setMood: setMood,
     newId: newId,
     listProfiles: listProfiles,
     activeProfile: activeProfile,
